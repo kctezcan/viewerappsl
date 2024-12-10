@@ -1,27 +1,3 @@
-# import streamlit as st
-# import nibabel as nib
-# import numpy as np
-# import matplotlib.pyplot as plt
-# from io import BytesIO  # Import BytesIO
-# import os
-# import tempfile  # Import tempfile for temporary file handling
-
-
-# st.title("NIFTI Image Middle Slice Viewer")
-
-# data = np.load(".static/subj1_data.npy")
-
-# data = np.transpose(data, [0, 2, 1])
-
-# print(data.shape)
-
-# slice_index = st.slider("Select slice index", 0, data.shape[2] - 1, int(data.shape[2]/2) )  # Default to slice 220
-# st.image(data[:, :, slice_index] / np.max(data[:, :, slice_index]), caption=f'Slice {slice_index}')
-    
-# print("asdf")
-
-
-
 import streamlit as st
 import nibabel as nib
 import numpy as np
@@ -29,16 +5,21 @@ import matplotlib.pyplot as plt
 from io import BytesIO  # Import BytesIO
 import os
 import tempfile  # Import tempfile for temporary file handling
+import matplotlib.cm as cm
 
 
-st.title("NIFTI Image Middle Slice Viewer")
+st.title("Body Composition Analysis")
 
-input_path_img = st.file_uploader('Upload image files')
-input_path_segm = st.file_uploader('Upload segmentation files')
-input_path_ts = st.file_uploader('Upload TS files')
+cont1 = st.container()
 
-if (not input_path_img) or (not input_path_segm) or (not input_path_ts):
-    st.write("upload all files")
+with cont1:
+
+    input_path_img = st.file_uploader('Upload image files')
+    input_path_segm = st.file_uploader('Upload segmentation files')
+    input_path_ts = st.file_uploader('Upload TS files')
+
+    if (not input_path_img) or (not input_path_segm) or (not input_path_ts):
+        st.write("upload all files")
 
 col1, col2, col3 = st.columns(3)
 
@@ -77,13 +58,23 @@ if input_path_img and input_path_segm and input_path_ts:
     num_slices_img = data_img.shape[2]
     slice_index = st.slider("Select slice index", 0, num_slices_img - 1, int(num_slices_img / 2))  # Default to the middle slice
 
-    with col1:
-        st.image(data_img[:,:,slice_index]/np.max(data_img[:,:,:]))
+  
+    cont2 = st.container()
 
-    with col2:
-        st.image(data_segm[:,:,slice_index]/np.max(data_segm[:,:,:]))
+    with cont2:
+        with col1:
+            colormap1 = st.selectbox("Select Colormap Img", ["gray", "viridis", "plasma", "inferno", "magma", "cividis"])
+            img_colored = cm.get_cmap(colormap1)(data_img[:, :, slice_index] / np.max(data_img))
+            st.image(img_colored)
 
-    with col3:
-        st.image(data_ts[:,:,slice_index]/np.max(data_ts[:,:,:]))
+        with col2:
+            colormap2 = st.selectbox("Select Colormap Segm", ["gray", "viridis", "plasma", "inferno", "magma", "cividis"])
+            segm_colored = cm.get_cmap(colormap2)(data_segm[:, :, slice_index] / np.max(data_segm))
+            st.image(segm_colored)
+
+        with col3:
+            colormap3 = st.selectbox("Select Colormap TS", ["gray", "viridis", "plasma", "inferno", "magma", "cividis"])
+            ts_colored = cm.get_cmap(colormap3)(data_ts[:, :, slice_index] / np.max(data_ts))
+            st.image(ts_colored)
 
 st.write("end of app")
