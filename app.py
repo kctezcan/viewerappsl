@@ -7,9 +7,11 @@ import os
 import tempfile  # Import tempfile for temporary file handling
 import matplotlib.cm as cm
 from streamlit_image_coordinates import streamlit_image_coordinates
+import pandas as pd
 # https://image-coordinates.streamlit.app/
 
 st.set_page_config(layout="wide")
+st.session_state["images_loaded"] = False
 
 def latest_inx():
     np_keys = [key for key in st.session_state.keys() if ("numpy" in key)]
@@ -107,11 +109,10 @@ if input_path_img and input_path_segm and input_path_ts:
 
             # st.write(st.session_state[latest_inx()])
             lat_inx = st.session_state[latest_inx()]
-            scaled_inx_x = int(np.floor(lat_inx["x1"] * data_img.shape[1] / lat_inx["width"]))
-            scaled_inx_y = int(np.floor(lat_inx["y1"] * data_img.shape[0] / lat_inx["height"]))
-            st.write("pixel value: " + str(data_img[scaled_inx_y, scaled_inx_x, slice_index]) )
-            # st.write(scaled_inx_x, scaled_inx_y  )
-            # st.write(data_img[:, :, slice_index].shape)
+            if lat_inx:
+                scaled_inx_x = int(np.floor(lat_inx["x1"] * data_img.shape[1] / lat_inx["width"]))
+                scaled_inx_y = int(np.floor(lat_inx["y1"] * data_img.shape[0] / lat_inx["height"]))
+                st.write("pixel value: " + str(data_img[scaled_inx_y, scaled_inx_x, slice_index]) )
 
         with col2:
             colormap2 = st.selectbox("Select Colormap Segm", ["gray", "viridis", "plasma", "inferno", "magma", "cividis"])
@@ -122,11 +123,12 @@ if input_path_img and input_path_segm and input_path_ts:
                 use_column_width="always",
                 click_and_drag=True)
             lat_inx = st.session_state[latest_inx()]
-            scaled_inx_x = int(np.floor(lat_inx["x1"] * data_img.shape[1] / lat_inx["width"]))
-            scaled_inx_y = int(np.floor(lat_inx["y1"] * data_img.shape[0] / lat_inx["height"]))
-            pixel_val = int(data_segm[scaled_inx_y, scaled_inx_x, slice_index])
+            if lat_inx:
+                scaled_inx_x = int(np.floor(lat_inx["x1"] * data_img.shape[1] / lat_inx["width"]))
+                scaled_inx_y = int(np.floor(lat_inx["y1"] * data_img.shape[0] / lat_inx["height"]))
+                pixel_val = int(data_segm[scaled_inx_y, scaled_inx_x, slice_index])
 
-            st.write("pixel type: ", labels[pixel_val] )
+                st.write("pixel type: ", labels[pixel_val] )
 
         with col3:
             colormap3 = st.selectbox("Select Colormap TS", ["gray", "viridis", "plasma", "inferno", "magma", "cividis"])
@@ -137,23 +139,58 @@ if input_path_img and input_path_segm and input_path_ts:
                 use_column_width="always",
                 click_and_drag=True)
             lat_inx = st.session_state[latest_inx()]
-            scaled_inx_x = int(np.floor(lat_inx["x1"] * data_img.shape[1] / lat_inx["width"]))
-            scaled_inx_y = int(np.floor(lat_inx["y1"] * data_img.shape[0] / lat_inx["height"]))
-            st.write("pixel value: " + str(data_ts[scaled_inx_y, scaled_inx_x, slice_index]) )
+            if lat_inx:
+                scaled_inx_x = int(np.floor(lat_inx["x1"] * data_img.shape[1] / lat_inx["width"]))
+                scaled_inx_y = int(np.floor(lat_inx["y1"] * data_img.shape[0] / lat_inx["height"]))
+                st.write("pixel value: " + str(data_ts[scaled_inx_y, scaled_inx_x, slice_index]) )
+
+                st.session_state["images_loaded"] = True
 
 
 cont3 = st.container(border=True)
 
 with cont3:
-    voxel_size = [1.95312, 1.95312, 3.0]
-    voxel_volume = np.prod(voxel_size)
-    st.write(voxel_volume)
-    intraabdominal_visceral_fat = len(data_segm[np.where(data_segm==2)])
-    total = len(data_segm[data_segm>0].flatten())
-    st.write("intraabdominal_visceral_fat: " + str(intraabdominal_visceral_fat))
-    st.write("total: " + str(total))
-    st.write("intraabdominal_visceral_fat vol: " + str(intraabdominal_visceral_fat*voxel_volume*1e-6))
-    st.write("total vol: " + str(total*voxel_volume*1e-6))
+    if st.session_state["images_loaded"] and st.session_state["images_loaded"]==True:
+        voxel_size = [1.95312, 1.95312, 3.0]
+        voxel_volume = np.prod(voxel_size)
+        st.write("Voxel volume is " + str(np.round(voxel_volume,2)) + " mm3 or " + str(np.round(1e-3*voxel_volume,4)) + " cm3")
+
+        total_pxl = len(data_segm[data_segm>0].flatten())
+        total_vol = total_pxl * voxel_volume
+        st.write("Total body volume is " + str(np.round(total_vol,2)) + " mm3 or " + str(np.round(1e-6*total_vol,2)) + " liter")
+
+        
+        subcutaneous_fat_pxl = len(data_segm[np.where(data_segm==1)])
+        subcutaneous_fat_vol = subcutaneous_fat_pxl * voxel_volume
+
+        intraabdominal_visceral_fat_pxl = len(data_segm[np.where(data_segm==2)])
+        intraabdominal_visceral_fat_vol = intraabdominal_visceral_fat_pxl * voxel_volume
+
+        muscle_pxl = len(data_segm[np.where(data_segm==3)])
+        muscle_vol = muscle_pxl * voxel_volume
+
+        thoracic_visceral_fat_vxl = len(data_segm[np.where(data_segm==4)])
+        thoracic_visceral_fat_vol  = thoracic_visceral_fat_vxl * voxel_volume
+
+        intermuscular_fat_vxl = len(data_segm[np.where(data_segm==5)])
+        intermuscular_fat_vol  = intermuscular_fat_vxl * voxel_volume
+
+
+        fat_meas_df = pd.DataFrame(
+            {
+                "total_vol": [np.round(1e-6*total_vol,2)], 
+                "subcutaneous_fat_vol": [np.round(1e-6*subcutaneous_fat_vol,2)],
+                "intraabdominal_visceral_fat_vol": [np.round(1e-6*intraabdominal_visceral_fat_vol,2)],
+                "muscle_vol": [np.round(1e-6*muscle_vol,2)],
+                "thoracic_visceral_fat_vol": [np.round(1e-6*thoracic_visceral_fat_vol,2)],
+                "intermuscular_fat_vol": [np.round(1e-6*intermuscular_fat_vol,2)],
+            }
+        ).T
+
+        st.write(fat_meas_df)
+        
+
+
     
 #     Visceral Adipose Tissue (VAT)
 # Abdominal Subcutaneous Adipose Tissue (ASAT)
@@ -162,3 +199,10 @@ with cont3:
 # Individual Muscle Measurements
 # Liver PDFF
 # Muscle Fat Fraction (MFF)
+
+        # 0: "background",
+        # 1: "subcutaneous_fat",
+        # 3: "muscle",
+        # 2: "intraabdominal_visceral_fat",
+        # 4: "thoracic_visceral_fat",
+        # 5: "intermuscular_fat"
